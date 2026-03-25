@@ -38,7 +38,7 @@ db.init_app(app)
 jwt = JWTManager(app)
 
 redis_client = redis.Redis(host="localhost", port=6379, db=0, decode_responses=True)
-
+revoked_tokens = set()
 def jwt_login_required():
     def wrapper(fn):
         @wraps(fn)
@@ -49,6 +49,9 @@ def jwt_login_required():
 
                 user_id = get_jwt_identity()
                 user = User.query.get(user_id)
+                jti = get_jwt()['jti']
+                if  jti in revoked_tokens:
+                    return jsonify({"msg": "Token has been revoked. Please log in again."}), 401
 
                 if not user:
                     return jsonify({"msg": "User not found"}), 404
@@ -292,7 +295,7 @@ def verify_fp_otp():
         if not check_password_hash(fp_data["otp"], input_otp):
             return jsonify({"error": "Invalid OTP"}), 422
         return jsonify({"msg":"email verify successfully",
-                        "next":"rest_password"}),200
+                        "next":"reset_password"}),200
     except Exception as e:
         return jsonify({"error":str(e)}),500
     
@@ -356,6 +359,7 @@ def home():
             for post in posts: 
                 posts_data.append({
                     "id":post.id,
+                    "title":post.title,
                     "content":post.content,
                     "created_at":post.created_at,
                     "image url":post.image,
@@ -369,21 +373,19 @@ def home():
         for post in posts: 
                 posts_data.append({
                     "id":post.id,
+                    "title":post.title,
+                    "user_id":post.user_id,
                     "content":post.content,
                     "created_at":post.created_at,
-                    "image url":post.image,
-                    "Comment":len(post.comments),
-                    "like":len(post.likes),
-                    "is follwing":Follow.query.filter_by(follower_id=user_id, following_id=post.id).first() is not None})
+                    "image":post.image,
+                    "comment_count":len(post.comments),
+                    "like_count":len(post.likes),
+                    "is_following":Follow.query.filter_by(follower_id=int(user_id), following_id=post.user_id).first() is not None,
+                    "login": True})
         return jsonify({"posts":posts_data}),200
     except Exception as e:
-        return jsonify({"error":str(e)})
+        return jsonify({"error":str(e)}),500
         
-                
-        
-
-
-
 @app.route("/profile",methods=["GET"])
 @jwt_login_required()
 def profile():
@@ -401,11 +403,12 @@ def profile():
         for post in posts:
             posts_data.append({
                 "id":post.id,
+                "title":post.title,
                 "content":post.content,
                 "created_at":post.created_at,
-                "image url":post.image,
-                "Comment":len(post.comments),
-                "like":len(post.likes)
+                "image":post.image,
+                "comment_count":len(post.comments),
+                "like_count":len(post.likes)
             })
     
         followers=len(user.followers)
@@ -773,8 +776,14 @@ def like_post(post_id):
         
     except Exception as e:
         return jsonify({"error":str(e)}),500
-    
 
+@app.route('/logout', methods=['POST'])
+@jwt_login_required()
+def logout():
+    jti = get_jwt()['jti']  
+    revoked_tokens.add(jti)
+    return jsonify({"msg":"Successfully logged out"}),200
+    
 
 if __name__ == "__main__":
     with app.app_context():
