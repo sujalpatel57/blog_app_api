@@ -38,7 +38,7 @@ db.init_app(app)
 jwt = JWTManager(app)
 
 redis_client = redis.Redis(host="localhost", port=6379, db=0, decode_responses=True)
-revoked_tokens = set()
+
 def jwt_login_required():
     def wrapper(fn):
         @wraps(fn)
@@ -50,7 +50,7 @@ def jwt_login_required():
                 user_id = get_jwt_identity()
                 user = User.query.get(user_id)
                 jti = get_jwt()['jti']
-                if  jti in revoked_tokens:
+                if  redis_client.exists(f"blacklist:{jti}"):
                     return jsonify({"msg": "Token has been revoked. Please log in again."}), 401
 
                 if not user:
@@ -781,7 +781,7 @@ def like_post(post_id):
 @jwt_login_required()
 def logout():
     jti = get_jwt()['jti']  
-    revoked_tokens.add(jti)
+    redis_client.setex(f"blacklist:{jti}", 900, "true") 
     return jsonify({"msg":"Successfully logged out"}),200
     
 
