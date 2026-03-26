@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Write — BlogSphere</title>
+<link rel="stylesheet" href="css/style.css"/>
+<style>
+  .editor-wrap { max-width: 760px; margin: 0 auto; }
+  .char-count  { font-size: 11px; color: var(--muted); text-align: right; margin-top: 4px; }
+
+  /* View post mode */
+  .post-view { max-width: 740px; margin: 0 auto; }
+  .post-view-img { width: 100%; max-height: 440px; object-fit: cover; border-radius: var(--radius); margin-bottom: 28px; }
+  .post-view-title { font-family: var(--font-head); font-size: 34px; font-weight: 800; line-height: 1.2; margin-bottom: 16px; }
+  .post-view-meta  { display:flex; align-items:center; gap:14px; margin-bottom:28px; padding-bottom:20px; border-bottom:1px solid var(--border); }
+  .post-view-body  { font-size: 16px; line-height: 1.85; color: var(--text2); white-space: pre-wrap; }
+
+  /* Comments */
+  .comments-section { margin-top: 44px; }
+  .comment-item {
+    display: flex; gap: 14px; padding: 16px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .comment-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--grad2); display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; flex-shrink:0; }
+  .comment-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .comment-text { font-size: 14px; color: var(--text2); margin-top: 4px; line-height: 1.6; }
+  .comment-actions { display:flex; gap:8px; margin-top:6px; }
+</style>
+</head>
+<body>
+
+<div class="blobs">
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+  <div class="blob blob-3"></div>
+</div>
+
+<header class="navbar" id="navbar"></header>
+
+<div class="page-wrap">
+
+  <!-- ══ WRITE / EDIT FORM ══ -->
+  <div class="editor-wrap slide-up" id="editor-section">
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:30px;">
+      <div>
+        <div class="title-xl" id="editor-title-h">Write a new post ✏️</div>
+        <div class="subtitle">Share your thoughts with the BlogSphere community</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div id="editor-banner" class="banner"></div>
+
+      <div class="form-group">
+        <label>Post Title</label>
+        <input type="text" id="blog-title" placeholder="An engaging title…" maxlength="120" oninput="updateCharCount('blog-title','title-count',120)"/>
+        <div class="char-count"><span id="title-count">0</span> / 120</div>
+      </div>
+
+      <div class="form-group">
+        <label>Content</label>
+        <textarea id="blog-content" placeholder="Write your story here…" style="min-height:260px;" maxlength="5000" oninput="updateCharCount('blog-content','content-count',5000)"></textarea>
+        <div class="char-count"><span id="content-count">0</span> / 5000</div>
+      </div>
+
+      <div class="form-group">
+        <label>Cover Image</label>
+        <!-- File upload -->
+        <div class="upload-area" id="upload-area" onclick="document.getElementById('img-file').click()"
+          ondragover="event.preventDefault();this.classList.add('dragover')"
+          ondragleave="this.classList.remove('dragover')"
+          ondrop="handleDrop(event)">
+          <div class="upload-icon" id="upload-icon">🖼️</div>
+          <div class="upload-text" id="upload-text">Drag & drop or <span>browse files</span></div>
+          <input type="file" id="img-file" accept="image/*" style="display:none;" onchange="previewImage(this)"/>
+        </div>
+
+        <div class="divider"><span>or</span></div>
+
+        <div class="input-wrap">
+          <input type="url" id="img-url" placeholder="https://example.com/image.jpg" oninput="previewUrl(this.value)"/>
+        </div>
+
+        <!-- Image preview -->
+        <div id="img-preview" style="display:none;margin-top:14px;position:relative;">
+          <img id="img-preview-img" style="width:100%;max-height:240px;object-fit:cover;border-radius:12px;" alt="preview"/>
+          <button onclick="clearImage()" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.6);border:none;color:#fff;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:14px;">×</button>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:12px;flex-wrap:wrap;">
+        <button class="btn btn-primary" id="submit-btn" onclick="submitPost()" style="flex:1;min-width:160px;">
+          🚀 Publish Post
+        </button>
+        <button class="btn btn-ghost" onclick="window.location.href='index.html'">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ VIEW POST ══ -->
+  <div id="view-section" style="display:none;">
+    <div class="post-view fade-in">
+      <button class="btn btn-ghost btn-sm" onclick="window.location.href='index.html'" style="margin-bottom:20px;">← Back to feed</button>
+      <div id="view-banner" class="banner"></div>
+      <img id="view-img" class="post-view-img" alt="cover" style="display:none;"/>
+      <div class="post-view-title" id="view-title"></div>
+      <div class="post-view-meta">
+        <div class="post-avatar" id="view-avatar"></div>
+        <div>
+          <div id="view-author" style="font-size:14px;font-weight:500;"></div>
+          <div id="view-date" style="font-size:12px;color:var(--muted);"></div>
+        </div>
+        <div style="margin-left:auto;display:flex;gap:8px;" id="view-actions"></div>
+      </div>
+      <div class="post-view-body" id="view-body"></div>
+
+      <!-- Like / comment bar -->
+      <div style="display:flex;gap:14px;margin-top:28px;padding:16px;background:var(--card);border-radius:12px;border:1px solid var(--border);">
+        <button class="post-action" id="like-btn" onclick="toggleLikeView()">🤍 <span id="like-count">0</span></button>
+        <span class="post-action">💬 <span id="comment-count">0</span> comments</span>
+      </div>
+
+      <!-- Comments -->
+      <div class="comments-section">
+        <div class="title-md" style="margin-bottom:18px;">Comments</div>
+
+        <div id="comment-form-wrap">
+          <div class="form-group">
+            <textarea id="comment-input" placeholder="Share your thoughts…" style="min-height:80px;"></textarea>
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="submitComment()">Post Comment</button>
+        </div>
+
+        <div id="comments-list" style="margin-top:24px;"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="js/app.js"></script>
+<script>
+renderNavbar("add");
+
+const params  = new URLSearchParams(window.location.search);
+const editId  = params.get("edit");   // ?edit=ID  → edit mode
+const viewId  = params.get("view");   // ?view=ID  → view mode
+
+let imageFile = null;
+let currentPost = null;
+let loggedInUserId = null;
+
+// Decode JWT to get user id
+function decodeJWT(token) {
+  try { return JSON.parse(atob(token.split('.')[1])); } catch { return null; }
+}
+const jwtPayload = Auth.getAccess() ? decodeJWT(Auth.getAccess()) : null;
+if (jwtPayload) loggedInUserId = parseInt(jwtPayload.sub);
+
+// ── Char counter ──────────────────────────────
+function updateCharCount(inputId, countId, max) {
+  const len = document.getElementById(inputId).value.length;
+  document.getElementById(countId).textContent = len;
+}
+
+// ── Image handling ────────────────────────────
+function previewImage(input) {
+  imageFile = input.files[0];
+  if (!imageFile) return;
+  const reader = new FileReader();
+  reader.onload = e => showPreview(e.target.result);
+  reader.readAsDataURL(imageFile);
+  document.getElementById("img-url").value = "";
+}
+
+function previewUrl(url) {
+  if (url.startsWith("http")) showPreview(url);
+  imageFile = null;
+}
+
+function showPreview(src) {
+  const wrap = document.getElementById("img-preview");
+  document.getElementById("img-preview-img").src = src;
+  wrap.style.display = "block";
+  document.getElementById("upload-icon").textContent = "✅";
+  document.getElementById("upload-text").innerHTML = "Image selected — <span>change</span>";
+}
+
+function clearImage() {
+  imageFile = null;
+  document.getElementById("img-url").value = "";
+  document.getElementById("img-preview").style.display = "none";
+  document.getElementById("img-file").value = "";
+  document.getElementById("upload-icon").textContent = "🖼️";
+  document.getElementById("upload-text").innerHTML = "Drag & drop or <span>browse files</span>";
+}
+
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById("upload-area").classList.remove("dragover");
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith("image/")) {
+    imageFile = file;
+    const reader = new FileReader();
+    reader.onload = ev => showPreview(ev.target.result);
+    reader.readAsDataURL(file);
+  }
+}
+
+// ── Submit (create / update) ──────────────────
+async function submitPost() {
+  if (!requireAuth()) return;
+  const title   = document.getElementById("blog-title").value.trim();
+  const content = document.getElementById("blog-content").value.trim();
+  const imgUrl  = document.getElementById("img-url").value.trim();
+  const image_file=document.getElementById("uplod-area");
+
+  if (!title || !content) return showBanner("editor-banner", "Title and content are required.");
+
+  const btn = document.getElementById("submit-btn");
+  setLoading(btn, true);
+
+  try {
+    let body; 
+    let headers = {};
+    const method   = editId ? "PUT" : "POST";
+    const endpoint = editId ? `/update_blog/${editId}` : "/add_blog";
+
+    if (imageFile) {
+      body = new FormData();
+      body.append("title", title);
+      body.append("content", content);
+      body.append("image_file", imageFile);
+    } else {
+      headers["Content-Type"] = "application/json";
+      body = JSON.stringify({ title, content, image_url: imgUrl || undefined });
+    }
+
+    const res  = await apiFetch(endpoint, { method, headers, body });
+    const data = await res.json();
+    setLoading(btn, false, editId ? "Update Post" : "🚀 Publish Post");
+
+    if (res.ok) {
+      toast(editId ? "Post updated!" : "Post published!", "success");
+      setTimeout(() => window.location.href = "index.html", 900);
+    } else {
+      showBanner("editor-banner", data.error || "Failed to save post.");
+    }
+  } catch {
+    setLoading(btn, false, editId ? "Update Post" : "🚀 Publish Post");
+    showBanner("editor-banner", "Network error.");
+  }
+}
+
+// ── Load post for editing ─────────────────────
+async function loadForEdit(id) {
+  try {
+    const res  = await apiFetch(`/edit_blog/${id}`);
+    const data = await res.json();
+    if (!res.ok) { toast(data.error || "Could not load post.", "error"); return; }
+    document.getElementById("blog-title").value   = data.title || "";
+    document.getElementById("blog-content").value = data.content || "";
+    updateCharCount("blog-title",   "title-count",   120);
+    updateCharCount("blog-content", "content-count", 5000);
+    if (data.image) { showPreview(imgSrc(data.image)); document.getElementById("img-url").value = data.image; }
+    document.getElementById("editor-title-h").textContent = "Edit post ✏️";
+    document.getElementById("submit-btn").textContent = "Update Post";
+  } catch {
+    toast("Network error.", "error");
+  }
+}
+
+// ── View post ─────────────────────────────────
+async function loadViewPost(id) {
+  document.getElementById("editor-section").style.display = "none";
+  document.getElementById("view-section").style.display   = "block";
+
+  try {
+    // Fetch from home feed to get this post's data
+    const res  = await apiFetch("/home");
+    const data = await res.json();
+    const post = (data.posts || []).find(p => p.id == id);
+
+    if (!post) { showBanner("view-banner", "Post not found."); return; }
+    currentPost = post;
+
+    const img = document.getElementById("view-img");
+    if (post.image) { img.src = imgSrc(post.image); img.style.display = "block"; }
+
+    document.getElementById("view-title").textContent  = post.title;
+    document.getElementById("view-body").textContent   = post.content;
+    document.getElementById("view-avatar").textContent = initials(post.author_name || "U");
+    document.getElementById("view-author").textContent = post.author_name || "Author";
+    document.getElementById("view-date").textContent   = fmtDate(post.created_at);
+    document.getElementById("like-count").textContent  = post.like_count || post.like || 0;
+    document.getElementById("comment-count").textContent = post.comment_count || post.Comment || 0;
+
+    if (post.is_liked) {
+      const lb = document.getElementById("like-btn");
+      lb.className = "post-action liked"; lb.innerHTML = `❤️ <span id="like-count">${document.getElementById("like-count").textContent}</span>`;
+    }
+
+    // Owner actions
+    if (loggedInUserId && post.user_id === loggedInUserId) {
+      document.getElementById("view-actions").innerHTML = `
+        <a href="add_blog.html?edit=${post.id}" class="btn btn-ghost btn-sm">✏️ Edit</a>
+        <button class="btn btn-danger btn-sm" onclick="confirmDeletePost(${post.id})">🗑 Delete</button>`;
+    }
+
+    // Hide comment form if not logged in
+    if (!Auth.isLoggedIn()) {
+      document.getElementById("comment-form-wrap").innerHTML =
+        `<p style="color:var(--muted);font-size:14px;"><a href="login.html" class="link">Sign in</a> to leave a comment.</p>`;
+    }
+
+    loadComments(id);
+  } catch {
+    showBanner("view-banner", "Failed to load post.");
+  }
+}
+
+async function loadComments(postId) {
+  try {
+    const res = await apiFetch(`/comments/${postId}`);
+    const data = await res.json();
+
+    const comments = data.comment;
+
+    const box = document.getElementById("comments-list");
+
+    if (!comments.length) {
+      box.innerHTML = `<p style="color:var(--muted);font-size:13px;">No comments yet</p>`;
+      return;
+    }
+
+    box.innerHTML = comments.map(c => `
+      <div class="comment-item">
+        <div class="comment-avatar">${initials(c.user_name || "U")}</div>
+
+        <div class="comment-content">
+          <div class="comment-meta">
+            <span class="comment-user">${c.user_name || "User"}</span>
+            <span class="comment-date">${fmtDate(c.created_at)}</span>
+          </div>
+
+          <div class="comment-text">${c.comment}</div>
+
+          ${c.is_own ? `
+            <div class="comment-actions">
+              <button onclick="editComment(${c.id})">Edit</button>
+              <button onclick="deleteComment(${c.id})">Delete</button>
+            </div>
+          ` : ""}
+        </div>
+      </div>
+    `).join("");
+
+  } catch (err) {
+    console.error(err);
+    document.getElementById("comments-list").innerHTML =
+      `<p style="color:red;">Failed to load comments</p>`;
+  }
+}
+async function submitComment() {
+  if (!Auth.isLoggedIn()) { window.location.href = "login.html"; return; }
+  const text = document.getElementById("comment-input").value.trim();
+  if (!text) return;
+  try {
+    const res  = await apiFetch(`/comment/${viewId}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ comment: text }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      toast("Comment posted!", "success");
+      document.getElementById("comment-input").value = "";
+      const cnt = document.getElementById("comment-count");
+      cnt.textContent = parseInt(cnt.textContent || 0) + 1;
+      // Prepend comment
+      const list = document.getElementById("comments-list");
+      const div  = document.createElement("div");
+      div.className = "comment-item fade-in";
+      div.innerHTML = `
+        <div class="comment-avatar">${initials("You")}</div>
+        <div style="flex:1;">
+          <div style="font-size:14px;font-weight:500;">You</div>
+          <div class="comment-meta">Just now</div>
+          <div class="comment-text">${text}</div>
+          <div class="comment-actions">
+            <button class="btn btn-danger btn-sm" onclick="deleteComment(${data.comment.id},this.closest('.comment-item'))">Delete</button>
+          </div>
+        </div>`;
+      if (list.firstChild) list.insertBefore(div, list.firstChild);
+      else list.appendChild(div);
+    } else {
+      toast(data.error || "Failed to post comment.", "error");
+    }
+  } catch {
+    toast("Network error.", "error");
+  }
+}
+function editComment(id) {
+  const textEl = document.getElementById(`c-text-${id}`);
+  const oldText = textEl.innerText;
+
+  textEl.innerHTML = `
+    <input type="text" id="edit-${id}" value="${oldText}" style="width:100%;padding:6px;" />
+    <button onclick="saveComment(${id})">Save</button>
+    <button onclick="cancelEdit(${id}, \`${oldText}\`)">Cancel</button>
+  `;
+}
+async function saveComment(id) {
+  const input = document.getElementById(`edit-${id}`);
+  const newText = input.value.trim();
+
+  if (!newText) {
+    toast("Comment cannot be empty", "error");
+    return;
+  }
+
+  try {
+    const res = await apiFetch(`update_comment/comment/${id}`, {
+      method: "PUT",
+      body: JSON.stringify({ comment: newText })
+    });
+
+    if (res.ok) {
+      // Update UI instantly (no reload)
+      const textEl = document.getElementById(`c-text-${id}`);
+      textEl.innerHTML = newText;
+
+      toast("Comment updated", "success");
+    } else {
+      toast("Update failed", "error");
+    }
+
+  } catch (err) {
+    console.error(err);
+    toast("Server error", "error");
+  }
+}
+async function deleteComment(commentId, el) {
+  try {
+    const res = await apiFetch(`/delete_comment/${commentId}`, { method: "DELETE" });
+    if (res.ok || res.status === 204) {
+      el?.remove();
+      toast("Comment deleted.", "info");
+    }
+  } catch { toast("Network error.", "error"); }
+}
+function cancelEdit(id, oldText) {
+  const textEl = document.getElementById(`c-text-${id}`);
+  textEl.innerHTML = oldText;
+}
+// ── Like (view mode) ──────────────────────────
+async function toggleLikeView() {
+  if (!Auth.isLoggedIn()) { window.location.href = "login.html"; return; }
+  try {
+    const res  = await apiFetch(`/like/${viewId}`, { method: "POST" });
+    const data = await res.json();
+    if (res.ok) {
+      const liked = data.msg === "like";
+      const lb    = document.getElementById("like-btn");
+      const cnt   = document.getElementById("like-count");
+      lb.className = `post-action ${liked ? 'liked' : ''}`;
+      const cur = parseInt(cnt.textContent) || 0;
+      cnt.textContent = liked ? cur + 1 : Math.max(0, cur - 1);
+      lb.innerHTML = `${liked ? '❤️' : '🤍'} <span id="like-count">${cnt.textContent}</span>`;
+    }
+  } catch { toast("Network error.", "error"); }
+}
+
+// ── Delete post ───────────────────────────────
+function confirmDeletePost(id) {
+  confirmModal("Delete Post?", "This cannot be undone.", () => deletePost(id));
+}
+async function deletePost(id) {
+  try {
+    const res = await apiFetch(`/delete_blog/${id}`, { method: "DELETE" });
+    if (res.ok || res.status === 204) {
+      toast("Post deleted.", "info");
+      setTimeout(() => window.location.href = "index.html", 800);
+    }
+  } catch { toast("Network error.", "error"); }
+}
+
+// ── Init ──────────────────────────────────────
+if (viewId) {
+  document.title = "Post — BlogSphere";
+  loadViewPost(viewId);
+} else {
+  if (!requireAuth()) { /* redirects */ }
+  else if (editId) loadForEdit(editId);
+}
+</script>
+</body>
+</html>

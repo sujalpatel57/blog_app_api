@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Register — BlogSphere</title>
+<link rel="stylesheet" href="css/style.css"/>
+</head>
+<body>
+
+<div class="blobs">
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+  <div class="blob blob-3"></div>
+</div>
+
+<div class="page-center">
+  <div class="auth-wrap slide-up">
+
+    <div class="auth-logo">
+      <div class="auth-logo-icon">B</div>
+      <div class="auth-logo-name">BlogSphere</div>
+    </div>
+
+    <!-- ════ REGISTER FORM ════ -->
+    <div class="card" id="section-register">
+      <div class="steps">
+        <div class="step-dot active" id="reg-s1"></div>
+        <div class="step-dot" id="reg-s2"></div>
+      </div>
+      <div class="title-lg" style="margin-bottom:4px;">Join BlogSphere ✨</div>
+      <div class="subtitle" style="margin-bottom:26px;">Create your account — it only takes a minute</div>
+
+      <div id="reg-banner" class="banner"></div>
+
+      <div class="form-group">
+        <label>Username</label>
+        <input type="text" id="reg-name" placeholder="cool_writer"/>
+      </div>
+
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="reg-email" placeholder="you@example.com"/>
+      </div>
+
+      <div class="form-group">
+        <label>Password</label>
+        <div class="input-wrap">
+          <input type="password" id="reg-password" placeholder="Min 8 characters" oninput="checkStrength(this.value)"/>
+          <button class="eye-btn" onclick="togglePwd('reg-password',this)">👁</button>
+        </div>
+        <div class="strength-bar">
+          <div class="strength-seg" id="st1"></div>
+          <div class="strength-seg" id="st2"></div>
+          <div class="strength-seg" id="st3"></div>
+          <div class="strength-seg" id="st4"></div>
+        </div>
+        <div class="strength-label" id="st-label"></div>
+      </div>
+
+      <div class="form-group">
+        <label>Confirm Password</label>
+        <div class="input-wrap">
+          <input type="password" id="reg-confirm" placeholder="Repeat password"/>
+          <button class="eye-btn" onclick="togglePwd('reg-confirm',this)">👁</button>
+        </div>
+      </div>
+
+      <button class="btn btn-primary btn-full" id="reg-btn" onclick="doRegister()">Create Account</button>
+
+      <div class="link-row">Already have an account? <a href="login.html" class="link">Sign in</a></div>
+    </div>
+
+    <!-- ════ VERIFY OTP ════ -->
+    <div class="card slide-up" id="section-verify" style="display:none;">
+      <div class="steps">
+        <div class="step-dot done"></div>
+        <div class="step-dot active"></div>
+      </div>
+      <div class="title-lg" style="margin-bottom:4px;">Check your inbox 📬</div>
+      <div class="subtitle" id="verify-sub" style="margin-bottom:26px;">We sent a 6-digit code to your email</div>
+
+      <div id="verify-banner" class="banner"></div>
+
+      <div class="form-group">
+        <label>One-Time Password</label>
+        <div class="otp-row">
+          <input type="text" maxlength="1" class="otp-digit" oninput="otpStep(this,0)"/>
+          <input type="text" maxlength="1" class="otp-digit" oninput="otpStep(this,1)"/>
+          <input type="text" maxlength="1" class="otp-digit" oninput="otpStep(this,2)"/>
+          <input type="text" maxlength="1" class="otp-digit" oninput="otpStep(this,3)"/>
+          <input type="text" maxlength="1" class="otp-digit" oninput="otpStep(this,4)"/>
+          <input type="text" maxlength="1" class="otp-digit" oninput="otpStep(this,5)"/>
+        </div>
+      </div>
+
+      <button class="btn btn-primary btn-full" id="verify-btn" onclick="doVerifyOTP()">Verify & Activate</button>
+      <div class="timer" style="display:none;">Resend in <span id="otp-timer">60</span>s</div>
+      <button class="btn btn-ghost btn-full" id="resend-btn" style="display:none; margin-top:10px;" onclick="doResendOTP()">Resend OTP</button>
+    </div>
+
+  </div>
+</div>
+
+<script src="js/app.js"></script>
+<script>
+let regToken = null;
+let otpTimerIv = null;
+
+function showSection(name) {
+  ["register","verify"].forEach(s => {
+    document.getElementById(`section-${s}`).style.display = "none";
+  });
+  document.getElementById(`section-${name}`).style.display = "block";
+}
+
+// REGISTER
+async function doRegister() {
+  const name     = document.getElementById("reg-name").value.trim();
+  const gmail    = document.getElementById("reg-email").value.trim();
+  const password = document.getElementById("reg-password").value;
+  const confirm  = document.getElementById("reg-confirm").value;
+
+  if (!name || !gmail || !password || !confirm)
+    return showBanner("reg-banner", "Please fill in all fields.");
+  if (password !== confirm)
+    return showBanner("reg-banner", "Passwords do not match.");
+
+  const btn = document.getElementById("reg-btn");
+  setLoading(btn, true);
+  try {
+    const res  = await fetch(`${API}/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, gmail, password, confirm }),
+    });
+    const data = await res.json();
+    setLoading(btn, false, "Create Account");
+    if (res.ok && data.token) {
+      regToken = data.token;
+      document.getElementById("verify-sub").textContent = `We sent a 6-digit code to ${data.gmail}`;
+      showSection("verify");
+      clearOTP("otp-digit");
+      otpTimerIv = startTimer("otp-timer", "resend-btn");
+    } else {
+      showBanner("reg-banner", data.error || "Registration failed.");
+    }
+  } catch {
+    setLoading(btn, false, "Create Account");
+    showBanner("reg-banner", "Network error — is the server running?");
+  }
+}
+
+// VERIFY OTP
+async function doVerifyOTP() {
+  const otp = getOTP("otp-digit");
+  if (otp.length < 6) return showBanner("verify-banner", "Enter all 6 digits.");
+  const btn = document.getElementById("verify-btn");
+  setLoading(btn, true);
+  try {
+    const res  = await fetch(`${API}/verify_email`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ temp_token: regToken, otp }),
+    });
+    const data = await res.json();
+    setLoading(btn, false, "Verify & Activate");
+    if (res.ok) {
+      clearInterval(otpTimerIv);
+      showBanner("verify-banner", "✅ Email verified! Redirecting to login…", "success");
+      setTimeout(() => window.location.href = "login.html", 1500);
+    } else {
+      showBanner("verify-banner", data.error || "Invalid OTP.");
+    }
+  } catch {
+    setLoading(btn, false, "Verify & Activate");
+    showBanner("verify-banner", "Network error.");
+  }
+}
+
+// RESEND OTP
+async function doResendOTP() {
+  try {
+    const res  = await fetch(`${API}/resend_otp`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ temp_token: regToken }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      regToken = data.token;
+      showBanner("verify-banner", "📨 New OTP sent!", "success");
+      clearOTP("otp-digit");
+      otpTimerIv = startTimer("otp-timer", "resend-btn");
+    } else {
+      showBanner("verify-banner", data.error || "Failed to resend.");
+    }
+  } catch {
+    showBanner("verify-banner", "Network error.");
+  }
+}
+
+// Redirect if already logged in
+if (Auth.isLoggedIn()) window.location.href = "index.html";
+
+// Enter key
+document.addEventListener("keydown", e => {
+  if (e.key !== "Enter") return;
+  if (document.getElementById("section-verify").style.display !== "none") { doVerifyOTP(); return; }
+  doRegister();
+});
+</script>
+</body>
+</html>

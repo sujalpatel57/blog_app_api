@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Sign In — BlogSphere</title>
+<link rel="stylesheet" href="css/style.css"/>
+</head>
+<body>
+
+<div class="blobs">
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+  <div class="blob blob-3"></div>
+</div>
+
+<div class="page-center">
+  <div class="auth-wrap slide-up">
+
+    <div class="auth-logo">
+      <div class="auth-logo-icon">B</div>
+      <div class="auth-logo-name">BlogSphere</div>
+    </div>
+
+    <div class="card">
+      <div class="title-lg" style="margin-bottom:4px;">Welcome back 👋</div>
+      <div class="subtitle" style="margin-bottom:26px;">Sign in to continue to BlogSphere</div>
+
+      <div id="login-banner" class="banner"></div>
+
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="login-email" placeholder="you@example.com"/>
+      </div>
+
+      <div class="form-group">
+        <label>Password</label>
+        <div class="input-wrap">
+          <input type="password" id="login-password" placeholder="••••••••"/>
+          <button class="eye-btn" onclick="togglePwd('login-password',this)">👁</button>
+        </div>
+      </div>
+
+      <div style="text-align:right; margin-bottom:22px;">
+        <a href="login.html#forgot" class="link" style="font-size:13px;" onclick="showSection('forgot'); return false;">Forgot password?</a>
+      </div>
+
+      <button class="btn btn-primary btn-full" id="login-btn" onclick="doLogin()">Sign In</button>
+
+      <div class="link-row">Don't have an account? <a href="register.html" class="link">Create one</a></div>
+    </div>
+
+    <!-- ════ FORGOT PASSWORD ════ -->
+    <div class="card slide-up" id="section-forgot" style="display:none; margin-top:14px;">
+      <div class="title-lg" style="margin-bottom:4px;">Reset password 🔑</div>
+      <div class="subtitle" style="margin-bottom:26px;">We'll send a 6-digit code to your email</div>
+
+      <div id="fp-banner" class="banner"></div>
+
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="fp-email" placeholder="you@example.com"/>
+      </div>
+
+      <button class="btn btn-primary btn-full" id="fp-btn" onclick="doForgotPassword()">Send Reset Code</button>
+      <button class="btn btn-ghost btn-full" style="margin-top:10px;" onclick="showSection('login')">← Back to Login</button>
+    </div>
+
+    <!-- ════ VERIFY FP OTP ════ -->
+    <div class="card slide-up" id="section-fp-verify" style="display:none; margin-top:14px;">
+      <div class="title-lg" style="margin-bottom:4px;">Enter the code 🔒</div>
+      <div class="subtitle" style="margin-bottom:26px;">Check your email for the 6-digit reset code</div>
+
+      <div id="fpv-banner" class="banner"></div>
+
+      <div class="form-group">
+        <label>Reset Code</label>
+        <div class="otp-row">
+          <input type="text" maxlength="1" class="fp-digit" oninput="otpStep(this,0,'fp-digit')"/>
+          <input type="text" maxlength="1" class="fp-digit" oninput="otpStep(this,1,'fp-digit')"/>
+          <input type="text" maxlength="1" class="fp-digit" oninput="otpStep(this,2,'fp-digit')"/>
+          <input type="text" maxlength="1" class="fp-digit" oninput="otpStep(this,3,'fp-digit')"/>
+          <input type="text" maxlength="1" class="fp-digit" oninput="otpStep(this,4,'fp-digit')"/>
+          <input type="text" maxlength="1" class="fp-digit" oninput="otpStep(this,5,'fp-digit')"/>
+        </div>
+      </div>
+
+      <button class="btn btn-primary btn-full" id="fpv-btn" onclick="doVerifyFPOTP()">Verify Code</button>
+      <div class="timer" style="display:none;">Resend in <span id="fp-timer">60</span>s</div>
+      <button class="btn btn-ghost btn-full" id="fp-resend-btn" style="display:none; margin-top:10px;" onclick="doResendFPOTP()">Resend Code</button>
+    </div>
+
+    <!-- ════ RESET PASSWORD ════ -->
+    <div class="card slide-up" id="section-reset" style="display:none; margin-top:14px;">
+      <div class="title-lg" style="margin-bottom:4px;">New password 🛡️</div>
+      <div class="subtitle" style="margin-bottom:26px;">Choose a strong password for your account</div>
+
+      <div id="reset-banner" class="banner"></div>
+
+      <div class="form-group">
+        <label>New Password</label>
+        <div class="input-wrap">
+          <input type="password" id="reset-password" placeholder="Min 8 chars"/>
+          <button class="eye-btn" onclick="togglePwd('reset-password',this)">👁</button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Confirm New Password</label>
+        <div class="input-wrap">
+          <input type="password" id="reset-confirm" placeholder="Repeat password"/>
+          <button class="eye-btn" onclick="togglePwd('reset-confirm',this)">👁</button>
+        </div>
+      </div>
+
+      <button class="btn btn-primary btn-full" id="reset-btn" onclick="doResetPassword()">Update Password</button>
+    </div>
+
+  </div><!-- /auth-wrap -->
+</div>
+
+<script src="js/app.js"></script>
+<script>
+let fpToken = null;
+let fpTimerIv = null;
+
+// Section switcher
+function showSection(name) {
+  ["login","forgot","fp-verify","reset"].forEach(s => {
+    const el = document.getElementById(`section-${s}`);
+    if (el) el.style.display = "none";
+  });
+  // Always show main login card
+  document.querySelector(".card").style.display = name === "login" ? "block" : "none";
+  if (name !== "login") {
+    const el = document.getElementById(`section-${name}`);
+    if (el) el.style.display = "block";
+  }
+}
+
+// LOGIN
+async function doLogin() {
+  const gmail    = document.getElementById("login-email").value.trim();
+  const password = document.getElementById("login-password").value;
+  if (!gmail || !password) return showBanner("login-banner", "Please fill in all fields.");
+  const btn = document.getElementById("login-btn");
+  setLoading(btn, true);
+  try {
+    const res  = await fetch(`${API}/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ gmail, password }),
+    });
+    const data = await res.json();
+    setLoading(btn, false, "Sign In");
+    if (res.ok) {
+      Auth.setTokens(data.access_token, data.refresh_token);
+      toast("Logged in! Redirecting…", "success");
+      setTimeout(() => window.location.href = "index.html", 900);
+    } else {
+      showBanner("login-banner", data.error || "Login failed.");
+    }
+  } catch {
+    setLoading(btn, false, "Sign In");
+    showBanner("login-banner", "Network error — is the server running?");
+  }
+}
+
+// FORGOT PASSWORD
+async function doForgotPassword() {
+  const gmail = document.getElementById("fp-email").value.trim();
+  if (!gmail) return showBanner("fp-banner", "Please enter your email.");
+  const btn = document.getElementById("fp-btn");
+  setLoading(btn, true);
+  try {
+    const res  = await fetch(`${API}/forgot_password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ gmail }),
+    });
+    const data = await res.json();
+    setLoading(btn, false, "Send Reset Code");
+    if (res.ok) {
+      fpToken = data.temp_token;
+      showSection("fp-verify");
+      clearOTP("fp-digit");
+      fpTimerIv = startTimer("fp-timer", "fp-resend-btn");
+    } else {
+      showBanner("fp-banner", data.error || "Failed to send OTP.");
+    }
+  } catch {
+    setLoading(btn, false, "Send Reset Code");
+    showBanner("fp-banner", "Network error.");
+  }
+}
+
+// VERIFY FP OTP
+async function doVerifyFPOTP() {
+  const otp = getOTP("fp-digit");
+  if (otp.length < 6) return showBanner("fpv-banner", "Enter all 6 digits.");
+  const btn = document.getElementById("fpv-btn");
+  setLoading(btn, true);
+  try {
+    const res  = await fetch(`${API}/verify_fp_otp`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ temp_token: fpToken, otp }),
+    });
+    const data = await res.json();
+    setLoading(btn, false, "Verify Code");
+    if (res.ok) {
+      clearInterval(fpTimerIv);
+      showSection("reset");
+    } else {
+      showBanner("fpv-banner", data.error || "Invalid code.");
+    }
+  } catch {
+    setLoading(btn, false, "Verify Code");
+    showBanner("fpv-banner", "Network error.");
+  }
+}
+
+// RESEND FP OTP
+async function doResendFPOTP() {
+  try {
+    const res  = await fetch(`${API}/resend_fp_otp`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ temp_token: fpToken }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      fpToken = data.token;
+      showBanner("fpv-banner", "📨 New code sent!", "success");
+      clearOTP("fp-digit");
+      fpTimerIv = startTimer("fp-timer", "fp-resend-btn");
+    } else {
+      showBanner("fpv-banner", data.error || "Failed to resend.");
+    }
+  } catch {
+    showBanner("fpv-banner", "Network error.");
+  }
+}
+
+// RESET PASSWORD
+async function doResetPassword() {
+  const password = document.getElementById("reset-password").value;
+  const confirm  = document.getElementById("reset-confirm").value;
+  if (!password || !confirm) return showBanner("reset-banner", "Please fill in both fields.");
+  if (password !== confirm)  return showBanner("reset-banner", "Passwords do not match.");
+  const btn = document.getElementById("reset-btn");
+  setLoading(btn, true);
+  try {
+    const res  = await fetch(`${API}/reset_password`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password, confirm, temp_token: fpToken }),
+    });
+    const data = await res.json();
+    setLoading(btn, false, "Update Password");
+    if (res.ok) {
+      showBanner("reset-banner", "✅ Password updated!", "success");
+      setTimeout(() => { showSection("login"); }, 1400);
+    } else {
+      showBanner("reset-banner", data.error || "Failed to reset.");
+    }
+  } catch {
+    setLoading(btn, false, "Update Password");
+    showBanner("reset-banner", "Network error.");
+  }
+}
+
+// Redirect if already logged in
+if (Auth.isLoggedIn()) window.location.href = "index.html";
+
+// Enter key
+document.addEventListener("keydown", e => {
+  if (e.key !== "Enter") return;
+  if (document.getElementById("section-forgot")?.style.display !== "none") { doForgotPassword(); return; }
+  if (document.getElementById("section-fp-verify")?.style.display !== "none") { doVerifyFPOTP(); return; }
+  if (document.getElementById("section-reset")?.style.display !== "none") { doResetPassword(); return; }
+  doLogin();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Profile — BlogSphere</title>
+<link rel="stylesheet" href="css/style.css"/>
+</head>
+<body>
+
+<div class="blobs">
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+  <div class="blob blob-3"></div>
+</div>
+
+<header class="navbar" id="navbar"></header>
+
+<div class="page-wrap">
+
+  <!-- Profile header skeleton / actual -->
+  <div id="profile-section">
+    <div class="profile-banner skeleton"></div>
+    <div class="profile-header">
+      <div class="profile-pic skeleton" style="width:96px;height:96px;"></div>
+      <div style="flex:1; padding-bottom:4px;">
+        <div class="skeleton" style="height:22px;width:160px;margin-bottom:8px;"></div>
+        <div class="skeleton" style="height:14px;width:240px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('posts',this)">My Posts</button>
+    <button class="tab" onclick="switchTab('edit',this)">Edit Profile</button>
+  </div>
+
+  <!-- Posts tab -->
+  <div id="tab-posts">
+    <div id="my-posts-grid" class="posts-grid"></div>
+    <div id="my-empty" class="empty-state" style="display:none;">
+      <div class="empty-icon">📝</div>
+      <p>You haven't written anything yet.</p>
+      <a href="add_blog.html" class="btn btn-primary" style="margin-top:16px;">Write your first post</a>
+    </div>
+  </div>
+
+  <!-- Edit profile tab -->
+  <div id="tab-edit" style="display:none; max-width:560px;">
+    <div class="card">
+      <div class="title-md" style="margin-bottom:20px;">Edit Profile</div>
+      <div id="edit-banner" class="banner"></div>
+
+      <div class="form-group" style="display:flex;align-items:center;gap:20px;">
+        <div id="edit-avatar" class="profile-pic" style="width:72px;height:72px;font-size:26px;cursor:pointer;" onclick="document.getElementById('pic-input').click()">?</div>
+        <div>
+          <div style="font-size:13px;color:var(--muted);margin-bottom:6px;">Click avatar to change photo</div>
+          <input type="file" id="pic-input" accept="image/*" style="display:none;" onchange="previewPic(this)"/>
+          <input type="url" id="pic-url" placeholder="…or paste image URL"/>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Bio</label>
+        <textarea id="edit-bio" placeholder="Tell the world who you are…"></textarea>
+      </div>
+
+      <button class="btn btn-primary" id="save-profile-btn" onclick="saveProfile()">Save Changes</button>
+    </div>
+
+    <!-- Change password -->
+    <div class="card" style="margin-top:20px;">
+      <div class="title-md" style="margin-bottom:20px;">Change Password</div>
+      <div id="pwd-banner" class="banner"></div>
+      <div class="form-group">
+        <label>Current Password</label>
+        <div class="input-wrap">
+          <input type="password" id="cur-pwd" placeholder="••••••••"/>
+          <button class="eye-btn" onclick="togglePwd('cur-pwd',this)">👁</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>New Password</label>
+        <div class="input-wrap">
+          <input type="password" id="new-pwd" placeholder="Min 8 chars" oninput="checkStrength(this.value,'cp')"/>
+          <button class="eye-btn" onclick="togglePwd('new-pwd',this)">👁</button>
+        </div>
+        <div class="strength-bar">
+          <div class="strength-seg" id="cp1"></div>
+          <div class="strength-seg" id="cp2"></div>
+          <div class="strength-seg" id="cp3"></div>
+          <div class="strength-seg" id="cp4"></div>
+        </div>
+        <div class="strength-label" id="cp-label"></div>
+      </div>
+      <div class="form-group">
+        <label>Confirm New Password</label>
+        <div class="input-wrap">
+          <input type="password" id="conf-pwd" placeholder="Repeat new password"/>
+          <button class="eye-btn" onclick="togglePwd('conf-pwd',this)">👁</button>
+        </div>
+      </div>
+      <button class="btn btn-secondary" id="change-pwd-btn" onclick="changePassword()">Update Password</button>
+    </div>
+  </div>
+
+</div>
+
+<script src="js/app.js"></script>
+<script>
+requireAuth();
+renderNavbar("profile");
+
+let profileData = null;
+let newPicFile  = null;
+
+// ── Load profile ──────────────────────────────
+async function loadProfile() {
+  try {
+    const res  = await apiFetch("/profile");
+    const data = await res.json();
+    if (!res.ok) { toast(data.error || "Failed to load profile.", "error"); return; }
+    profileData = data;
+    renderProfileHeader(data);
+    renderMyPosts(data.posts || []);
+    prefillEdit(data);
+  } catch {
+    toast("Could not load profile.", "error");
+  }
+}
+
+function renderProfileHeader(data) {
+  const u = data.user;
+  const profileSec = document.getElementById("profile-section");
+  const pic = u.profile_pic ? `<img class="profile-pic" src="${imgSrc(u.profile_pic)}" alt="avatar" style="object-fit:cover;"/>` :
+    `<div class="profile-pic" style="display:flex;align-items:center;justify-content:center;">${initials(u.name || u.gmail)}</div>`;
+
+  profileSec.innerHTML = `
+    <div class="profile-banner"></div>
+    <div class="profile-header">
+      ${pic}
+      <div class="profile-info">
+        <div class="profile-name">${u.name || u.gmail}</div>
+        <div class="profile-bio">${u.bio || "No bio yet — tell the world who you are!"}</div>
+        <div class="profile-stats">
+          <div class="stat-item"><div class="stat-num">${(data.posts||[]).length}</div><div class="stat-lbl">Posts</div></div>
+          <div class="stat-item"><div class="stat-num">${data.followers||0}</div><div class="stat-lbl">Followers</div></div>
+          <div class="stat-item"><div class="stat-num">${data.following||0}</div><div class="stat-lbl">Following</div></div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderMyPosts(posts) {
+  const grid  = document.getElementById("my-posts-grid");
+  const empty = document.getElementById("my-empty");
+  if (!posts.length) { grid.innerHTML=""; empty.style.display="block"; return; }
+  empty.style.display = "none";
+  grid.innerHTML = posts.map((p, i) => `
+    <div class="post-card fade-in" style="animation-delay:${i*0.06}s;">
+      ${p.image ? `<img class="post-img" src="${imgSrc(p.image)}" alt="${p.title}">` : `<div class="post-img-placeholder">📝</div>`}
+      <div class="post-body">
+        <div class="post-title">${p.title}</div>
+        <div class="post-excerpt">${truncate(p.content, 110)}</div>
+        <div class="post-date" style="margin-top:10px;font-size:12px;color:var(--muted);">${fmtDate(p.created_at)}</div>
+      </div>
+      <div class="post-footer">
+        <span class="post-action">🤍 ${p.like_count||0}</span>
+        <span class="post-action">💬 ${p.comment_count||0}</span>
+        <a href="add_blog.html?edit=${p.id}" class="btn btn-ghost btn-sm" onclick="event.stopPropagation()">✏️ Edit</a>
+        <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();confirmDeletePost(${p.id})">🗑</button>
+      </div>
+    </div>`
+  ).join("");
+}
+
+function prefillEdit(data) {
+  const u = data.user;
+  document.getElementById("edit-bio").value = u.bio || "";
+  const av = document.getElementById("edit-avatar");
+  if (u.profile_pic) {
+    av.innerHTML = `<img src="${imgSrc(u.profile_pic)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;"/>`;
+  } else {
+    av.textContent = initials(u.name || u.gmail);
+  }
+}
+
+// ── Tab switcher ──────────────────────────────
+function switchTab(name, btn) {
+  document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+  btn.classList.add("active");
+  document.getElementById("tab-posts").style.display = name === "posts" ? "block" : "none";
+  document.getElementById("tab-edit").style.display  = name === "edit"  ? "block" : "none";
+}
+
+// ── Picture preview ───────────────────────────
+function previewPic(input) {
+  newPicFile = input.files[0];
+  if (!newPicFile) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById("edit-avatar").innerHTML =
+      `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;"/>`;
+    document.getElementById("pic-url").value = "";
+  };
+  reader.readAsDataURL(newPicFile);
+}
+
+// ── Save profile (bio + pic) ──────────────────
+async function saveProfile() {
+  const picUrl = document.getElementById("pic-url").value.trim();
+  const bio    = document.getElementById("edit-bio").value.trim();
+  const btn    = document.getElementById("save-profile-btn");
+  setLoading(btn, true);
+
+  try {
+    let body, headers = {};
+    if (newPicFile) {
+      body = new FormData();
+      body.append("bio", bio);
+      body.append("profile_pic", newPicFile);
+    } else {
+      headers["Content-Type"] = "application/json";
+      body = JSON.stringify({ bio, profile_pic_url: picUrl || undefined });
+    }
+
+    const res = await apiFetch("/update_profile", {
+      method: "PUT",
+      headers,
+      body,
+    });
+    const data = await res.json();
+    setLoading(btn, false, "Save Changes");
+    if (res.ok) {
+      toast("Profile updated!", "success");
+      loadProfile();
+    } else {
+      showBanner("edit-banner", data.error || "Update failed.");
+    }
+  } catch {
+    setLoading(btn, false, "Save Changes");
+    showBanner("edit-banner", "Network error.");
+  }
+}
+
+// ── Change password ───────────────────────────
+async function changePassword() {
+  const current  = document.getElementById("cur-pwd").value;
+  const password = document.getElementById("new-pwd").value;
+  const confirm  = document.getElementById("conf-pwd").value;
+
+  if (!current || !password || !confirm)
+    return showBanner("pwd-banner", "Please fill in all password fields.");
+  if (password !== confirm)
+    return showBanner("pwd-banner", "New passwords do not match.");
+
+  const btn = document.getElementById("change-pwd-btn");
+  setLoading(btn, true);
+  try {
+    const res  = await apiFetch("/change_password", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ current_password: current, password, confirm }),
+    });
+    const data = await res.json();
+    setLoading(btn, false, "Update Password");
+    if (res.ok) {
+      toast("Password changed!", "success");
+      ["cur-pwd","new-pwd","conf-pwd"].forEach(id => document.getElementById(id).value = "");
+      clearBanner("pwd-banner");
+    } else {
+      showBanner("pwd-banner", data.error || "Failed to change password.");
+    }
+  } catch {
+    setLoading(btn, false, "Update Password");
+    showBanner("pwd-banner", "Network error.");
+  }
+}
+
+// ── Delete post ───────────────────────────────
+function confirmDeletePost(postId) {
+  confirmModal(
+    "Delete Post?",
+    "This action cannot be undone. Your post will be permanently removed.",
+    () => deletePost(postId)
+  );
+}
+
+async function deletePost(postId) {
+  try {
+    const res = await apiFetch(`/delete_blog/${postId}`, { method: "DELETE" });
+    if (res.ok || res.status === 200 || res.status === 204) {
+      toast("Post deleted.", "info");
+      loadProfile();
+    } else {
+      const d = await res.json();
+      toast(d.error || "Failed to delete.", "error");
+    }
+  } catch {
+    toast("Network error.", "error");
+  }
+}
+
+loadProfile();
+</script>
+</body>
+</html>

@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Home — BlogSphere</title>
+<link rel="stylesheet" href="css/style.css"/>
+</head>
+<body>
+
+<div class="blobs">
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+  <div class="blob blob-3"></div>
+</div>
+
+<!-- Navbar -->
+<header class="navbar" id="navbar"></header>
+
+<div class="page-wrap">
+
+  <!-- Hero -->
+  <div style="text-align:center; padding: 48px 0 44px; position:relative;">
+    <div class="badge badge-c3" style="margin-bottom:14px;">✨ Stories worth reading</div>
+    <h1 class="title-xl grad-text" style="font-size:44px; max-width:600px; margin:0 auto 14px;">
+      Ideas that inspire,<br/>stories that connect
+    </h1>
+    <p class="subtitle" style="font-size:15px; max-width:440px; margin:0 auto 28px;">
+      Discover posts from writers around the world. Share your thoughts. Build your audience.
+    </p>
+    <div id="hero-cta"></div>
+  </div>
+
+  <!-- Search bar -->
+  <div style="max-width:500px; margin: 0 auto 36px; position:relative;">
+    <input type="text" id="search-input" placeholder="🔍  Search posts…"
+      style="padding-left:20px; font-size:15px; border-radius:40px;"
+      oninput="filterPosts(this.value)"/>
+  </div>
+
+  <!-- Feed -->
+  <div id="posts-grid" class="posts-grid">
+    <!-- skeleton placeholders -->
+    ${Array(6).fill(`
+      <div class="post-card">
+        <div class="skeleton" style="height:200px; border-radius:0;"></div>
+        <div class="post-body">
+          <div style="display:flex;gap:10px;margin-bottom:12px;">
+            <div class="skeleton" style="width:32px;height:32px;border-radius:50%;"></div>
+            <div style="flex:1;">
+              <div class="skeleton" style="height:12px;width:60%;margin-bottom:6px;"></div>
+              <div class="skeleton" style="height:10px;width:40%;"></div>
+            </div>
+          </div>
+          <div class="skeleton" style="height:16px;width:80%;margin-bottom:8px;"></div>
+          <div class="skeleton" style="height:12px;width:100%;margin-bottom:5px;"></div>
+          <div class="skeleton" style="height:12px;width:70%;"></div>
+        </div>
+      </div>`).join("")}
+  </div>
+
+  <div id="empty-state" class="empty-state" style="display:none;">
+    <div class="empty-icon">📭</div>
+    <p>No posts found. Be the first to write something!</p>
+  </div>
+
+</div>
+
+<script src="js/app.js"></script>
+<script>
+let allPosts = [];
+
+renderNavbar("home");
+
+// Hero CTA
+const heroCta = document.getElementById("hero-cta");
+if (Auth.isLoggedIn()) {
+  heroCta.innerHTML = `<a href="add_blog.html" class="btn btn-primary" style="font-size:15px;padding:13px 30px;">✏️ Write a post</a>`;
+} else {
+  heroCta.innerHTML = `
+    <a href="register.html" class="btn btn-primary" style="font-size:15px;padding:13px 30px;margin-right:10px;">Get started free</a>
+    <a href="login.html" class="btn btn-ghost" style="font-size:15px;padding:13px 28px;">Sign in</a>`;
+}
+
+// Load posts
+async function loadPosts() {
+  try {
+    const res  = await apiFetch("/home");
+    const data = await res.json();
+    allPosts = data.posts || [];
+    renderPosts(allPosts);
+  } catch {
+    document.getElementById("posts-grid").innerHTML = "";
+    toast("Could not load posts. Check your connection.", "error");
+  }
+}
+
+function renderPosts(posts) {
+  const grid = document.getElementById("posts-grid");
+  const empty = document.getElementById("empty-state");
+
+  if (!posts.length) {
+    grid.innerHTML = "";
+    empty.style.display = "block";
+    return;
+  }
+  empty.style.display = "none";
+
+  grid.innerHTML = posts.map((p, i) => `
+    <div class="post-card fade-in" style="animation-delay:${i * 0.05}s" onclick="openPost(${p.id})">
+      ${p.image
+        ? `<img class="post-img" src="${imgSrc(p.image)}" alt="${p.title}" onerror="this.parentElement.querySelector('.post-img-placeholder') && (this.style.display='none')">`
+        : `<div class="post-img-placeholder">📝</div>`
+      }
+      <div class="post-body">
+        <div class="post-meta">
+          <div class="post-avatar">${initials(p.author_name || "U")}</div>
+          <div>
+            <div class="post-author">${p.author_name}</div>
+          </div>
+          <div class="post-date">${fmtDate(p.created_at)}</div>
+        </div>
+        <div class="post-title">${p.title}</div>
+
+        
+        <div class="post-excerpt">${truncate(p.content, 130)}</div>
+      </div>
+      <div class="post-footer">
+        <button class="post-action ${p.is_liked ? 'liked':''}" onclick="event.stopPropagation();toggleLike(${p.id},this)">
+          ${p.is_liked ? '❤️' : '🤍'} <span>${p.like_count || p.like || 0}</span>
+        </button>
+        <button class="post-action" onclick="event.stopPropagation();openPost(${p.id})">
+          💬 <span>${p.comment_count || p.Comment || 0}</span>
+        </button>
+        ${p.login && !p.is_own ? `
+          <button class="follow-btn ${p.is_following?'following':''}" id="follow-${p.user_id}"
+            onclick="event.stopPropagation();toggleFollow(${p.user_id},this)">
+            ${p.is_following ? '✓ Following' : '+ Follow'}
+          </button>` : ""}
+      </div>
+    </div>`
+  ).join("");
+}
+
+function filterPosts(query) {
+  const q = query.toLowerCase();
+  const filtered = allPosts.filter(p =>
+    p.title.toLowerCase().includes(q) ||
+    p.content.toLowerCase().includes(q)
+  );
+  renderPosts(filtered);
+}
+
+function openPost(id) {
+  window.location.href = `add_blog.html?view=${id}`;
+}
+
+async function toggleLike(postId, btn) {
+  if (!Auth.isLoggedIn()) { window.location.href = "login.html"; return; }
+  try {
+    const res  = await apiFetch(`/like/${postId}`, { method: "POST" });
+    const data = await res.json();
+    if (res.ok) {
+      const liked = data.msg === "like";
+      btn.className = `post-action ${liked ? 'liked' : ''}`;
+      const countEl = btn.querySelector("span");
+      const current = parseInt(countEl.textContent) || 0;
+      countEl.textContent = liked ? current + 1 : Math.max(0, current - 1);
+      btn.firstChild.textContent = liked ? "❤️" : "🤍 ";
+      // Update in allPosts
+      const p = allPosts.find(p => p.id === postId);
+      if (p) { p.is_liked = liked; p.like_count = parseInt(countEl.textContent); }
+    }
+  } catch { toast("Could not update like.", "error"); }
+}
+
+async function toggleFollow(userId, btn) {
+  if (!Auth.isLoggedIn()) { window.location.href = "login.html"; return; }
+  try {
+    const res  = await apiFetch(`/follow/${userId}`, { method: "POST" });
+    const data = await res.json();
+    if (res.ok) {
+      const following = data.is_following;
+      btn.className = `follow-btn ${following ? 'following' : ''}`;
+      btn.textContent = following ? "✓ Following" : "+ Follow";
+      toast(data.msg, "success");
+    }
+  } catch { toast("Could not update follow.", "error"); }
+}
+
+loadPosts();
+</script>
+</body>
+</html>
