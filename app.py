@@ -348,6 +348,8 @@ def reset_password():
         return jsonify({"msg":"password update sucessfully"}),200
     except Exception as e:
         return jsonify({"error":str(e)}),500
+
+
 @app.route("/home",methods=["GET"])
 def home():
     try:
@@ -380,14 +382,6 @@ def home():
                     "created_at":post.created_at,
                     "image":post.image,
                     "comment_count":len(post.comments),
-                    "Comments": [{
-                                    "id": c.id,
-                                    "user_id": c.user_id,
-                                    "comment": c.comment,
-                                    "created_at": c.timestamp
-                                    }   
-                                    for c in post.comments
-                                ],
                     "like_count":len(post.likes),
                     "is_following":Follow.query.filter_by(follower_id=int(user_id), following_id=post.user_id).first() is not None,
                     "login": True})
@@ -421,8 +415,6 @@ def profile():
             })
     
         followers=len(user.followers)
-
-        print (f"debug for followers{(followers)}")
         following=len(user.following)
 
         return jsonify({
