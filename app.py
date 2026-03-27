@@ -786,7 +786,6 @@ def uploaded_file(filename):
 @jwt_login_required()
 def get_comments(post_id):
     user_id =int( get_jwt_identity())
-    post=db.session.get(Post,post_id)
     comments = Comment.query.filter_by(post_id=post_id)\
         .order_by(Comment.id.desc()).all()
     
