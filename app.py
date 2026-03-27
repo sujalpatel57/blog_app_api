@@ -653,7 +653,7 @@ def delete_comment(comment_id):
         db.session.delete(comment)
         db.session.commit()
 
-        return jsonify({"msg": "Comment delete successfully"}), 204
+        return jsonify({"msg": "Comment delete successfully"}), 200
     except Exception as e:
         return jsonify({
             "error": str(e)
@@ -703,7 +703,7 @@ def update_comment(comment_id):
             "msg": "comment updated successfully",
             "comment": {
                 "id": comment.id,
-                "comment":comment.id,
+                "comment":comment.comment,
                 "post_id": comment.post_id
             }
         }), 200
@@ -808,6 +808,47 @@ def get_comments(post_id):
         }
         for c in comments]
     return jsonify({"comment":comments}), 200
+
+@app.route("/get_post/<int:post_id>", methods=["GET"])
+def get_post(post_id):
+    try:
+        verify_jwt_in_request(optional=True)
+        user_id = get_jwt_identity()
+        if user_id:
+            user_id = int(user_id)
+
+        posts = Post.query.filter_by(id=post_id)
+
+        if not posts:
+            return jsonify({"error": "Post not found"}), 404
+
+        posts_data=[]
+        for post in posts: 
+                posts_data.append({
+                    "id":post.id,
+                    "author_name":post.author.name,
+                    "title":post.title,
+                    "user_id":post.user_id,
+                    "content":post.content,
+                    "created_at":post.created_at,
+                    "image":post.image,
+                    "comment_count":len(post.comments),
+                    "Comments": [{
+                                    "id": c.id,
+                                    "user_id": c.user_id,
+                                    "comment": c.comment,
+                                    "created_at": c.timestamp
+                                    }   
+                                    for c in post.comments
+                                ],
+                    "like_count":len(post.likes),
+                    "is_following":Follow.query.filter_by(follower_id=int(user_id), following_id=post.user_id).first() is not None,
+                    "login": True})
+        return jsonify({"posts":posts_data}),200
+        
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/logout', methods=['POST'])
 @jwt_login_required()

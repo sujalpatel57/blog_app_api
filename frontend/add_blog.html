@@ -273,53 +273,70 @@ async function loadForEdit(id) {
 
 // ── View post ─────────────────────────────────
 async function loadViewPost(id) {
+  // Switch UI
   document.getElementById("editor-section").style.display = "none";
   document.getElementById("view-section").style.display   = "block";
 
   try {
-    // Fetch from home feed to get this post's data
-    const res  = await apiFetch("/home");
+    // ── FETCH POST ─────────────────────────
+    const res  = await apiFetch(`/get_post/${id}`);
     const data = await res.json();
-    const post = (data.posts || []).find(p => p.id == id);
-
-    if (!post) { showBanner("view-banner", "Post not found."); return; }
+    const post = data.posts[0];
+  // ✅ FIX: get first item
     currentPost = post;
 
+    // ── IMAGE ──────────────────────────────
     const img = document.getElementById("view-img");
-    if (post.image) { img.src = imgSrc(post.image); img.style.display = "block"; }
+    if (post.image) {
+      img.src = imgSrc(post.image);
+      img.style.display = "block";
+    } else {
+      img.style.display = "none";
+    }
 
+    // ── BASIC DATA ─────────────────────────
     document.getElementById("view-title").textContent  = post.title;
     document.getElementById("view-body").textContent   = post.content;
     document.getElementById("view-avatar").textContent = initials(post.author_name || "U");
     document.getElementById("view-author").textContent = post.author_name || "Author";
     document.getElementById("view-date").textContent   = fmtDate(post.created_at);
-    document.getElementById("like-count").textContent  = post.like_count || post.like || 0;
-    document.getElementById("comment-count").textContent = post.comment_count || post.Comment || 0;
 
-    if (post.is_liked) {
-      const lb = document.getElementById("like-btn");
-      lb.className = "post-action liked"; lb.innerHTML = `❤️ <span id="like-count">${document.getElementById("like-count").textContent}</span>`;
-    }
+    // ── COUNTS ─────────────────────────────
+    document.getElementById("like-count").textContent =
+      post.like_count || 0;
 
-    // Owner actions
+    document.getElementById("comment-count").textContent =
+      post.comment_count || 0;
+
+    // ── LIKE STATE (optional) ──────────────
+    const likeBtn = document.getElementById("like-btn");
+    likeBtn.className = "post-action";
+    likeBtn.innerHTML = `🤍 <span id="like-count">${post.like_count || 0}</span>`;
+
+    // ── OWNER ACTIONS ──────────────────────
     if (loggedInUserId && post.user_id === loggedInUserId) {
       document.getElementById("view-actions").innerHTML = `
         <a href="add_blog.html?edit=${post.id}" class="btn btn-ghost btn-sm">✏️ Edit</a>
-        <button class="btn btn-danger btn-sm" onclick="confirmDeletePost(${post.id})">🗑 Delete</button>`;
+        <button class="btn btn-danger btn-sm" onclick="confirmDeletePost(${post.id})">🗑 Delete</button>
+      `;
     }
 
-    // Hide comment form if not logged in
+    // ── LOGIN CHECK ────────────────────────
     if (!Auth.isLoggedIn()) {
       document.getElementById("comment-form-wrap").innerHTML =
-        `<p style="color:var(--muted);font-size:14px;"><a href="login.html" class="link">Sign in</a> to leave a comment.</p>`;
+        `<p style="color:var(--muted);font-size:14px;">
+          <a href="login.html" class="link">Sign in</a> to leave a comment.
+        </p>`;
     }
 
+    // ── LOAD COMMENTS (your existing API) ──
     loadComments(id);
-  } catch {
+
+  } catch (err) {
+    console.error(err);
     showBanner("view-banner", "Failed to load post.");
   }
-}
-
+}                 
 async function loadComments(postId) {
   try {
     const res = await apiFetch(`/comments/${postId}`);
@@ -344,15 +361,15 @@ async function loadComments(postId) {
             <span class="comment-date">${fmtDate(c.created_at)}</span>
           </div>
 
-          <div class="comment-text">${c.comment}</div>
+          <div class="comment-text" id="c-text-${c.id}">${c.comment}</div>
 
           ${c.is_own ? `
             <div class="comment-actions">
-              <button onclick="editComment(${c.id})">Edit</button>
-              <button onclick="deleteComment(${c.id})">Delete</button>
+              <button class="btn btn-ghost btn-sm" onclick="editComment(${c.id})">✏️Edit</button>
+              <button class="btn btn-ghost btn-sm" onclick="deleteComment(${c.id})">🗑Delete</button>
             </div>
           ` : ""}
-        </div>
+        </div>  
       </div>
     `).join("");
 
@@ -403,13 +420,26 @@ async function submitComment() {
 }
 function editComment(id) {
   const textEl = document.getElementById(`c-text-${id}`);
+  if (!textEl) {
+    console.error("Element not found: c-text-" + id);
+    return;
+  }
   const oldText = textEl.innerText;
 
   textEl.innerHTML = `
-    <input type="text" id="edit-${id}" value="${oldText}" style="width:100%;padding:6px;" />
-    <button onclick="saveComment(${id})">Save</button>
-    <button onclick="cancelEdit(${id}, \`${oldText}\`)">Cancel</button>
+    <input 
+      type="text" 
+      id="edit-${id}" 
+      value="${oldText.replace(/"/g, '&quot;')}" 
+      style="width:100%;padding:6px;" 
+    />
+    <br> </br>
+    <button class="btn btn-ghost btn-sm" onclick="saveComment(${id})">Save</button>
+    <button class="btn btn-ghost btn-sm"  onclick="cancelEdit(${id})">Cancel</button>
   `;
+
+  // store original safely
+  textEl.dataset.old = oldText;
 }
 async function saveComment(id) {
   const input = document.getElementById(`edit-${id}`);
@@ -421,19 +451,20 @@ async function saveComment(id) {
   }
 
   try {
-    const res = await apiFetch(`update_comment/comment/${id}`, {
+    const res = await apiFetch(`/update_comment/${id}`, {   // ✅ FIXED URL
       method: "PUT",
-      body: JSON.stringify({ comment: newText })
+      body: JSON.stringify({ updated_comment: newText })   // ✅ MATCH BACKEND
     });
 
+    const data = await res.json();
+
     if (res.ok) {
-      // Update UI instantly (no reload)
       const textEl = document.getElementById(`c-text-${id}`);
       textEl.innerHTML = newText;
 
-      toast("Comment updated", "success");
+      toast(data.msg || "Comment updated", "success");
     } else {
-      toast("Update failed", "error");
+      toast(data.error || "Update failed", "error");
     }
 
   } catch (err) {
@@ -441,19 +472,43 @@ async function saveComment(id) {
     toast("Server error", "error");
   }
 }
-async function deleteComment(commentId, el) {
-  try {
-    const res = await apiFetch(`/delete_comment/${commentId}`, { method: "DELETE" });
-    if (res.ok || res.status === 204) {
-      el?.remove();
-      toast("Comment deleted.", "info");
-    }
-  } catch { toast("Network error.", "error"); }
-}
 function cancelEdit(id, oldText) {
   const textEl = document.getElementById(`c-text-${id}`);
   textEl.innerHTML = oldText;
 }
+
+async function deleteComment(id) {
+  if (!confirm("Delete this comment?")) return;
+
+  try {
+    const res = await apiFetch(`/delete_comment/${id}`, {
+      method: "DELETE"
+    });
+
+    let data = {};
+    try {
+      data = await res.json();   // ✅ safe parse
+    } catch {
+      data = { msg: "Deleted" }; // fallback
+    }
+
+    if (res.ok) {
+      const textEl = document.getElementById(`c-text-${id}`);
+      if (textEl) {
+        textEl.closest(".comment-item").remove();
+      }
+
+      toast(data.msg || "Deleted", "success");
+    } else {
+      toast(data.error || "Delete failed", "error");
+    }
+
+  } catch (err) {
+    console.error(err);
+    toast("Server error", "error");
+  }
+}
+
 // ── Like (view mode) ──────────────────────────
 async function toggleLikeView() {
   if (!Auth.isLoggedIn()) { window.location.href = "login.html"; return; }

@@ -155,24 +155,51 @@ function renderProfileHeader(data) {
 function renderMyPosts(posts) {
   const grid  = document.getElementById("my-posts-grid");
   const empty = document.getElementById("my-empty");
-  if (!posts.length) { grid.innerHTML=""; empty.style.display="block"; return; }
+
+  if (!posts.length) {
+    grid.innerHTML = "";
+    empty.style.display = "block";
+    return;
+  }
   empty.style.display = "none";
+
   grid.innerHTML = posts.map((p, i) => `
-    <div class="post-card fade-in" style="animation-delay:${i*0.06}s;">
-      ${p.image ? `<img class="post-img" src="${imgSrc(p.image)}" alt="${p.title}">` : `<div class="post-img-placeholder">📝</div>`}
+    <div class="post-card fade-in" style="animation-delay:${i * 0.05}s" onclick="openPost(${p.id})">
+      ${p.image
+        ? `<img class="post-img" src="${imgSrc(p.image)}" alt="${p.title}" onerror="this.parentElement.querySelector('.post-img-placeholder') && (this.style.display='none')">`
+        : `<div class="post-img-placeholder">📝</div>`
+      }
       <div class="post-body">
+        <div class="post-meta">
+          <div class="post-avatar">${initials(p.author_name || "U")}</div>
+          <div>
+            <div class="post-author">${p.author_name}</div>
+          </div>
+          <div class="post-date">${fmtDate(p.created_at)}</div>
+        </div>
         <div class="post-title">${p.title}</div>
-        <div class="post-excerpt">${truncate(p.content, 110)}</div>
-        <div class="post-date" style="margin-top:10px;font-size:12px;color:var(--muted);">${fmtDate(p.created_at)}</div>
+
+        
+        <div class="post-excerpt">${truncate(p.content, 130)}</div>
       </div>
       <div class="post-footer">
-        <span class="post-action">🤍 ${p.like_count||0}</span>
-        <span class="post-action">💬 ${p.comment_count||0}</span>
-        <a href="add_blog.html?edit=${p.id}" class="btn btn-ghost btn-sm" onclick="event.stopPropagation()">✏️ Edit</a>
-        <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();confirmDeletePost(${p.id})">🗑</button>
+        <button class="post-action ${p.is_liked ? 'liked':''}" onclick="event.stopPropagation();toggleLike(${p.id},this)">
+          ${p.is_liked ? '❤️' : '🤍'} <span>${p.like_count || p.like || 0}</span>
+        </button>
+        <button class="post-action" onclick="event.stopPropagation();openPost(${p.id})">
+          💬 <span>${p.comment_count || p.Comment || 0}</span>
+        </button>
+        ${p.login && !p.is_own ? `
+          <button class="follow-btn ${p.is_following?'following':''}" id="follow-${p.user_id}"
+            onclick="event.stopPropagation();toggleFollow(${p.user_id},this)">
+            ${p.is_following ? '✓ Following' : '+ Follow'}
+          </button>` : ""}
       </div>
     </div>`
   ).join("");
+}
+function openPost(id) {
+  window.location.href = `add_blog.html?view=${id}`;
 }
 
 function prefillEdit(data) {
@@ -277,28 +304,30 @@ async function changePassword() {
     showBanner("pwd-banner", "Network error.");
   }
 }
-
-// ── Delete post ───────────────────────────────
-function confirmDeletePost(postId) {
-  confirmModal(
-    "Delete Post?",
-    "This action cannot be undone. Your post will be permanently removed.",
-    () => deletePost(postId)
-  );
+function editPost(id) {
+  window.location.href = `add_blog.html?edit=${id}`;
 }
+// ── Delete post ───────────────────────────────
+async function deletePost(id, btn) {
+  if (!confirm("Delete this post?")) return;
 
-async function deletePost(postId) {
   try {
-    const res = await apiFetch(`/delete_blog/${postId}`, { method: "DELETE" });
-    if (res.ok || res.status === 200 || res.status === 204) {
-      toast("Post deleted.", "info");
-      loadProfile();
+    const res = await apiFetch(`/delete_post/${id}`, {
+      method: "DELETE"
+    });
+
+    const data = await res.json();
+
+    if (res.ok) {
+      btn.closest(".post-card").remove();   // ✅ remove UI
+      toast(data.msg || "Post deleted", "success");
     } else {
-      const d = await res.json();
-      toast(d.error || "Failed to delete.", "error");
+      toast(data.error || "Delete failed", "error");
     }
-  } catch {
-    toast("Network error.", "error");
+
+  } catch (err) {
+    console.error(err);
+    toast("Server error", "error");
   }
 }
 
