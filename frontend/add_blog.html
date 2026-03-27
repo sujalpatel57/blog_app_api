@@ -269,6 +269,7 @@ async function loadForEdit(id) {
   } catch {
     toast("Network error.", "error");
   }
+
 }
 
 // ── View post ─────────────────────────────────
@@ -478,7 +479,7 @@ function cancelEdit(id, oldText) {
 }
 
 async function deleteComment(id) {
-  if (!confirm("Delete this comment?")) return;
+  if (!confirm("Delete this comment?")) return;;
 
   try {
     const res = await apiFetch(`/delete_comment/${id}`, {
@@ -494,6 +495,7 @@ async function deleteComment(id) {
 
     if (res.ok) {
       const textEl = document.getElementById(`c-text-${id}`);
+      btn.closest(".post-card").remove();
       if (textEl) {
         textEl.closest(".comment-item").remove();
       }
