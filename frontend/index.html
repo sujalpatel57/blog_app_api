@@ -28,7 +28,6 @@
     </h1>
     <p class="subtitle" style="font-size:15px; max-width:440px; margin:0 auto 28px;">
       Discover posts from writers around the world. Share your thoughts. Build your audience.
-      created by: addi
     </p>
     <div id="hero-cta"></div>
   </div>
@@ -131,7 +130,7 @@ function renderPosts(posts) {
         <button class="post-action ${p.is_liked ? 'liked':''}" onclick="event.stopPropagation();toggleLike(${p.id},this)">
           ${p.is_liked ? '❤️' : '🤍'} <span>${p.like_count || p.like || 0}</span>
         </button>
-        <button class="post-action" onclick="event.stopPropagation();openPost(${p.id})">
+        <button class="post-action" onclick="event.stopPropagation();togglecomment(${p.id})">
           💬 <span>${p.comment_count || p.Comment || 0}</span>
         </button>
         ${p.login && !p.is_own ? `
@@ -154,6 +153,7 @@ function filterPosts(query) {
 }
 
 function openPost(id) {
+  if (!Auth.isLoggedIn()) { window.location.href = "login.html"; return; }
   window.location.href = `add_blog.html?view=${id}`;
 }
 
@@ -174,6 +174,12 @@ async function toggleLike(postId, btn) {
       if (p) { p.is_liked = liked; p.like_count = parseInt(countEl.textContent); }
     }
   } catch { toast("Could not update like.", "error"); }
+}
+async function togglecomment(postId, btn) {
+  if (!Auth.isLoggedIn()) { window.location.href = "login.html"; return; }
+  else{
+        openPost(postId)}
+
 }
 
 async function toggleFollow(userId, btn) {

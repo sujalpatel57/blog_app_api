@@ -364,7 +364,7 @@ def home():
                     "title":post.title,
                     "content":post.content,
                     "created_at":post.created_at,
-                    "image url":post.image,
+                    "image":post.image,
                     "Comment":len(post.comments),
                     "like":len(post.likes)})
             return jsonify({"posts":posts_data}),200
@@ -421,6 +421,7 @@ def profile():
             "user": {
                 "id": user.id,
                 "gmail": user.gmail,
+                "name":user.name,
                 "bio": user.bio,
                 "profile_pic": user_profile_pic
             },

@@ -46,7 +46,7 @@ async function apiFetch(path, options = {}) {
       res = await fetch(`${API}${path}`, { ...options, headers });
     } else {
       Auth.clear();
-      window.location.href = "login.html";
+      window.location.href= "/index.html";
       return;
     }
   }
@@ -191,10 +191,12 @@ function renderNavbar(activePage = "") {
 async function doLogout() {
   try {
     await apiFetch("/logout", { method: "POST" });
-  } catch (_) {}
+  } catch (err) {
+    console.log("API error:", err);
+  }
   Auth.clear();
   toast("Logged out successfully", "info");
-  setTimeout(() => window.location.href = "login.html", 800);
+  window.location.href= "index.html";
 }
 
 /* ── Format date ─────────────────────────────── */
@@ -248,7 +250,7 @@ function confirmModal(title, body, onConfirm) {
 /* ── Guard: redirect if not logged in ────────── */
 function requireAuth() {
   if (!Auth.isLoggedIn()) {
-    window.location.href = "login.html";
+    window.location.href = "/index.html";
     return false;
   }
   return true;

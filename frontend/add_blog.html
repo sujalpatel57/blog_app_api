@@ -274,6 +274,7 @@ async function loadForEdit(id) {
 
 // ── View post ─────────────────────────────────
 async function loadViewPost(id) {
+  
   // Switch UI
   document.getElementById("editor-section").style.display = "none";
   document.getElementById("view-section").style.display   = "block";
@@ -367,7 +368,7 @@ async function loadComments(postId) {
           ${c.is_own ? `
             <div class="comment-actions">
               <button class="btn btn-ghost btn-sm" onclick="editComment(${c.id})">✏️Edit</button>
-              <button class="btn btn-ghost btn-sm" onclick="deleteComment(${c.id})">🗑Delete</button>
+              <button class="btn btn-ghost btn-sm" onclick="confirmcomment(${c.id})">🗑Delete</button>
             </div>
           ` : ""}
         </div>  
@@ -407,7 +408,8 @@ async function submitComment() {
           <div class="comment-meta">Just now</div>
           <div class="comment-text">${text}</div>
           <div class="comment-actions">
-            <button class="btn btn-danger btn-sm" onclick="deleteComment(${data.comment.id},this.closest('.comment-item'))">Delete</button>
+            
+            <button class="btn btn-danger btn-sm" onclick="confirmcomment(${data.comment.id},this.closest('.comment-item'))">Delete</button>
           </div>
         </div>`;
       if (list.firstChild) list.insertBefore(div, list.firstChild);
@@ -479,7 +481,6 @@ function cancelEdit(id, oldText) {
 }
 
 async function deleteComment(id) {
-  if (!confirm("Delete this comment?")) return;;
 
   try {
     const res = await apiFetch(`/delete_comment/${id}`, {
@@ -494,11 +495,11 @@ async function deleteComment(id) {
     }
 
     if (res.ok) {
-      const textEl = document.getElementById(`c-text-${id}`);
-      btn.closest(".post-card").remove();
-      if (textEl) {
-        textEl.closest(".comment-item").remove();
-      }
+      const commentEl = document
+        .getElementById(`c-text-${id}`)
+        ?.closest(".comment-item");
+
+      commentEl?.remove();
 
       toast(data.msg || "Deleted", "success");
     } else {
@@ -532,6 +533,9 @@ async function toggleLikeView() {
 // ── Delete post ───────────────────────────────
 function confirmDeletePost(id) {
   confirmModal("Delete Post?", "This cannot be undone.", () => deletePost(id));
+}
+function confirmcomment(id,btn){
+  confirmModal("Delete comment?","This cannot be undone.", () => deleteComment(id));
 }
 async function deletePost(id) {
   try {

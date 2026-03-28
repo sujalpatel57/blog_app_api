@@ -132,16 +132,19 @@ async function loadProfile() {
 
 function renderProfileHeader(data) {
   const u = data.user;
+  const capitalize = ([first, ...rest]) => first.toUpperCase() + rest.join('').toLowerCase();
   const profileSec = document.getElementById("profile-section");
   const pic = u.profile_pic ? `<img class="profile-pic" src="${imgSrc(u.profile_pic)}" alt="avatar" style="object-fit:cover;"/>` :
     `<div class="profile-pic" style="display:flex;align-items:center;justify-content:center;">${initials(u.name || u.gmail)}</div>`;
-
+  const name = u.name
+  ? u.name.charAt(0).toUpperCase() + u.name.slice(1).toLowerCase()
+  : u.gmail;
   profileSec.innerHTML = `
     <div class="profile-banner"></div>
     <div class="profile-header">
       ${pic}
       <div class="profile-info">
-        <div class="profile-name">${u.name || u.gmail}</div>
+        <div class="profile-name">${name}</div>
         <div class="profile-bio">${u.bio || "No bio yet — tell the world who you are!"}</div>
         <div class="profile-stats">
           <div class="stat-item"><div class="stat-num">${(data.posts||[]).length}</div><div class="stat-lbl">Posts</div></div>

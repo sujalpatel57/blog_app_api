@@ -341,54 +341,26 @@ input::placeholder, textarea::placeholder { color: #3e3d50; }
 
   display: flex;
   flex-direction: column;
-  height: 420px; /* 🔥 fixed equal height */
+  height: 430px; /* slightly increased so nothing cuts */
 
   transition: all 0.35s ease;
 }
 
-/* ✨ Glow border effect */
-.post-card::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  padding: 1px;
-  background: linear-gradient(120deg, transparent, rgba(255,255,255,0.08), transparent);
-  -webkit-mask: 
-    linear-gradient(#000 0 0) content-box, 
-    linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-          mask-composite: exclude;
-  opacity: 0;
-  transition: 0.35s;
-}
-
-/* ✨ Hover Animation */
 .post-card:hover {
-  transform: translateY(-8px) scale(1.01);
-  box-shadow: 0 30px 80px rgba(0,0,0,0.6);
-  border-color: var(--border2);
-}
-
-.post-card:hover::before {
-  opacity: 1;
+  transform: translateY(-6px);
+  box-shadow: 0 25px 70px rgba(0,0,0,0.5);
 }
 
 /* ── Image ───────────────────────────────── */
 .post-img,
 .post-img-placeholder {
   width: 100%;
-  height: 200px;
+  height: 180px; /* reduced to give space below */
   flex-shrink: 0;
 }
 
 .post-img {
   object-fit: cover;
-  transition: transform 0.5s ease;
-}
-
-.post-card:hover .post-img {
-  transform: scale(1.05);
 }
 
 .post-img-placeholder {
@@ -402,7 +374,7 @@ input::placeholder, textarea::placeholder { color: #3e3d50; }
 
 /* ── Body ───────────────────────────────── */
 .post-body {
-  padding: 20px;
+  padding: 18px;
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -413,12 +385,12 @@ input::placeholder, textarea::placeholder { color: #3e3d50; }
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 .post-avatar {
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
   background: var(--grad2);
   display: flex;
@@ -426,61 +398,60 @@ input::placeholder, textarea::placeholder { color: #3e3d50; }
   justify-content: center;
   font-size: 12px;
   font-weight: 700;
-  flex-shrink: 0;
 }
 
 .post-author {
   font-size: 13px;
-  font-weight: 500;
 }
 
 .post-date {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--muted);
   margin-left: auto;
 }
 
-/* ── Title (fixed height) ───────────────── */
+/* ── Title ───────────────────────────────── */
 .post-title {
-  font-family: var(--font-head);
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 700;
   line-height: 1.3;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 
-  min-height: 44px; /* 🔥 FIX */
+  min-height: 42px; /* fixed space */
 }
 
-/* ── Excerpt (fixed height) ─────────────── */
+/* ── Excerpt ─────────────────────────────── */
 .post-excerpt {
   font-size: 13px;
   color: var(--text2);
-  line-height: 1.6;
+  line-height: 1.5;
 
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
 
-  min-height: 62px; /* 🔥 FIX */
+  min-height: 58px; /* fixed space */
 }
 
-/* ── Footer ─────────────────────────────── */
+/* ── Footer (IMPORTANT FIX) ─────────────── */
 .post-footer {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 14px 20px;
+  gap: 12px;
+  padding: 12px 18px;
   border-top: 1px solid var(--border);
   margin-top: auto;
+
+  flex-wrap: wrap; /* 🔥 prevents button cut-off */
 }
 
-/* ── Actions ────────────────────────────── */
+/* ── Actions ───────────────────────────── */
 .post-action {
   display: flex;
   align-items: center;
@@ -489,44 +460,35 @@ input::placeholder, textarea::placeholder { color: #3e3d50; }
   color: var(--muted);
   background: none;
   border: none;
-  padding: 6px 10px;
+  padding: 5px 8px;
   border-radius: 8px;
-  transition: all 0.25s ease;
 }
 
 .post-action:hover {
   background: var(--input-bg);
   color: var(--text);
-  transform: scale(1.05);
 }
 
 .post-action.liked {
   color: var(--c1);
 }
 
-.post-action.liked span {
-  color: var(--c1);
-}
-
 /* ── Follow Button ─────────────────────── */
 .follow-btn {
   margin-left: auto;
-  padding: 6px 14px;
+  padding: 5px 12px;
   border-radius: 20px;
   font-size: 12px;
   font-weight: 600;
-  font-family: var(--font-head);
   border: 1px solid var(--border2);
   background: transparent;
   color: var(--text2);
-  transition: all 0.3s ease;
+
+  white-space: nowrap; /* 🔥 prevents breaking */
 }
 
+.follow-btn.following,
 .follow-btn:hover {
-  transform: scale(1.05);
-}
-
-.follow-btn.following {
   background: var(--grad2);
   color: #fff;
   border-color: transparent;
