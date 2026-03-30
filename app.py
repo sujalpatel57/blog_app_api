@@ -120,7 +120,6 @@ def register():
             "otp": generate_password_hash(otp)
             }
         redis_client.setex(f"otp:{temp_token}", 300, json.dumps(otp_data))
-        send_otp_email(gmail, otp)
         res=send_otp_email(gmail, otp)
         if res==True:
             return jsonify({
@@ -344,6 +343,7 @@ def reset_password():
             return jsonify({"error":"password and confrim password does not match"}),422
         user.password = generate_password_hash(password)
         db.session.commit()
+        redis_client.delete(f"fp:{temp_token}")
 
         return jsonify({"msg":"password update sucessfully"}),200
     except Exception as e:
